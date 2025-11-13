@@ -662,6 +662,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NVIDIA Maxine Studio Voice Enhancement
+  app.post("/api/maxine/enhance", authenticateApiKey, upload.single("audio"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const modelType = (req.body.model_type || "48k-hq") as "48k-hq" | "48k-ll" | "16k-hq";
+      const streaming = req.body.streaming === "true" || req.body.streaming === true;
+
+      // Call Maxine service via ML client
+      const result = await mlClient.callMaxineEnhance({
+        audio: req.file.buffer,
+        model_type: modelType,
+        streaming: streaming
+      });
+
+      res.setHeader("Content-Type", "audio/wav");
+      res.setHeader("X-Processing-Time", `${result.processing_time}ms`);
+      res.setHeader("X-Model-Type", result.model_type);
+      res.send(result.audio);
+    } catch (error: any) {
+      console.error("[Maxine] Error:", error);
+
+      if (error.message.includes("not available")) {
+        return res.status(503).json({
+          error: "NVIDIA Maxine Studio Voice service not available. Set NGC_API_KEY environment variable.",
+          service: "maxine_voice"
+        });
+      }
+
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Maxine Voice - Noise Reduction
+  app.post("/api/maxine/denoise", authenticateApiKey, upload.single("audio"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const strength = parseFloat(req.body.strength || "0.8");
+
+      const result = await mlClient.callMaxineEnhance({
+        audio: req.file.buffer,
+        model_type: "48k-hq",
+        streaming: false
+      });
+
+      res.setHeader("Content-Type", "audio/wav");
+      res.setHeader("X-Processing-Time", `${result.processing_time}ms`);
+      res.send(result.audio);
+    } catch (error: any) {
+      console.error("[Maxine Denoise] Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Maxine Service Status
+  app.get("/api/maxine/status", authenticateApiKey, async (req, res) => {
+    try {
+      const status = await mlClient.getMaxineStatus();
+      res.json(status);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Delete Cloned Voice
   app.delete("/api/voices/:id", authenticateApiKey, async (req, res) => {
     try {

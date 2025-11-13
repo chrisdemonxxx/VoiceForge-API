@@ -41,6 +41,7 @@ class WorkerType(Enum):
     VLLM = "vllm"
     HF_TTS = "hf_tts"
     CLONE = "clone"
+    MAXINE = "maxine"
 
 
 @dataclass
@@ -114,6 +115,10 @@ class Worker:
                 from voice_cloning_service import VoiceCloningService
                 service = VoiceCloningService()
                 print(f"[Worker {self.worker_id}] Voice cloning service initialized", file=sys.stderr, flush=True)
+            elif self.worker_type == WorkerType.MAXINE:
+                from maxine_voice_service import get_maxine_service
+                service = get_maxine_service()
+                print(f"[Worker {self.worker_id}] NVIDIA Maxine Voice service initialized", file=sys.stderr, flush=True)
         except Exception as e:
             print(f"[Worker {self.worker_id}] Failed to initialize service: {e}", file=sys.stderr, flush=True)
             traceback.print_exc(file=sys.stderr)
@@ -293,6 +298,29 @@ class Worker:
             
             else:
                 raise ValueError(f"Unknown voice cloning action: {action}")
+        elif self.worker_type == WorkerType.MAXINE:
+            # NVIDIA Maxine Voice processing
+            import base64
+            audio_b64 = task.data.get("audio", "")
+            model_type = task.data.get("model_type", "48k-hq")
+            streaming = task.data.get("streaming", False)
+
+            if not audio_b64:
+                return {"error": "No audio provided"}
+
+            audio_bytes = base64.b64decode(audio_b64)
+            result = service.enhance_voice(
+                audio_data=audio_bytes,
+                model_type=model_type,
+                streaming=streaming
+            )
+
+            return {
+                "audio": base64.b64encode(result["audio"]).decode('utf-8'),
+                "sample_rate": result["sample_rate"],
+                "processing_time": result["processing_time"],
+                "model_type": result["model_type"]
+            }
         else:
             raise ValueError(f"Unknown worker type: {self.worker_type}")
     
