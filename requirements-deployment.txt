@@ -6,9 +6,8 @@
 # ============================================================================
 # NOTE: PyTorch with CUDA 12.1 is installed separately in Dockerfile
 # to ensure proper CUDA wheel installation. Do not add torch/torchaudio here.
-transformers==4.39.3
+transformers==4.43.2
 accelerate==0.27.2
-optimum==1.18.0
 einops==0.7.0
 
 # ============================================================================
@@ -22,7 +21,7 @@ chatterbox-tts==0.1.0
 # git+https://github.com/boson-ai/higgs-audio.git
 
 # StyleTTS2 - Human-level TTS (pip installable wrapper)
-styletts2==0.1.7
+styletts2==0.1.6
 
 # Fallback TTS for compatibility
 TTS==0.22.0
@@ -74,11 +73,12 @@ scipy==1.11.4
 # Model Management & Optimization
 # ============================================================================
 # NOTE: bitsandbytes version must match torch CUDA wheel (cu121)
-# NOTE: huggingface-hub >=0.23.2 required by transformers 4.39.3
+# NOTE: huggingface-hub >=0.23.2 required by transformers 4.43.2
 huggingface-hub==0.23.2
 safetensors==0.4.1
 bitsandbytes==0.42.0
 peft==0.12.0
+tokenizers>=0.19.1
 
 # ============================================================================
 # API & Web Framework

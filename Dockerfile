@@ -66,9 +66,9 @@ RUN pip3 install --no-cache-dir vllm==0.6.0
 COPY requirements-deployment.txt ./
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir \
-    transformers==4.39.3 \
+    transformers==4.43.2 \
     accelerate==0.27.2 \
-    optimum==1.18.0 \
+    tokenizers>=0.19.1 \
     einops==0.7.0 \
     sentencepiece==0.2.0 \
     protobuf==4.25.3
@@ -76,7 +76,7 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
 # Install TTS models (production-ready)
 RUN pip3 install --no-cache-dir \
     chatterbox-tts==0.1.0 \
-    styletts2==0.1.7 \
+    styletts2==0.1.6 \
     TTS==0.22.0
 
 # Install STT (faster-whisper with CTranslate2)
