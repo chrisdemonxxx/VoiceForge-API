@@ -146,23 +146,17 @@ RUN pip3 install --no-cache-dir \
 # ============================================================================
 # Pre-download Production Models (speeds up first startup)
 # ============================================================================
+# NOTE: Large models (Llama, Higgs, Whisper) are downloaded at runtime to avoid
+# build timeouts and disk space limits. Only small models are pre-downloaded.
 
-# Pre-download Whisper large-v3 model
-RUN python3 -c "from faster_whisper import WhisperModel; WhisperModel('large-v3', device='cpu', compute_type='int8', download_root='/app/ml-cache')" || true
-
-# Pre-download Silero VAD v5
+# Pre-download Silero VAD v5 (small, ~20MB)
 RUN python3 -c "import torch; torch.hub.set_dir('/app/ml-cache'); torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False, trust_repo=True)" || true
 
-# Pre-download StyleTTS2 models (if available)
-RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('yl4579/StyleTTS2-LibriTTS', cache_dir='/app/ml-cache')" || true
-
-# Pre-download Higgs Audio V2 models
-RUN python3 -c "from transformers import AutoProcessor, AutoModel; AutoProcessor.from_pretrained('bosonai/higgs-audio-v2-tokenizer', cache_dir='/app/ml-cache', trust_remote_code=True)" || true
-RUN python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('bosonai/higgs-audio-v2-generation-3B-base', cache_dir='/app/ml-cache', trust_remote_code=True)" || true
-
-# Pre-download Llama-3.3-70B-Instruct (will take time but speeds up first run)
-# Note: This requires HF authentication token set via HF_TOKEN environment variable
-RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('meta-llama/Llama-3.3-70B-Instruct', cache_dir='/app/ml-cache', ignore_patterns=['*.safetensors'])" || echo "Llama model download requires HF_TOKEN"
+# NOTE: The following models will be downloaded on first use at runtime:
+# - Whisper large-v3 (~3GB) - downloaded by faster-whisper on first use
+# - StyleTTS2 (~500MB) - downloaded by StyleTTS2 on first use
+# - Higgs Audio V2 (~6GB) - downloaded by transformers on first use
+# - Llama-3.3-70B (~140GB) - downloaded by vLLM on first use or use NVIDIA API fallback
 
 # ============================================================================
 # Runtime Configuration
