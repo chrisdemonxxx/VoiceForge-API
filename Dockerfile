@@ -73,7 +73,10 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     sentencepiece==0.2.0 \
     protobuf==4.25.3
 
-# Install TTS models (production-ready)
+# Install librosa FIRST (before TTS) to resolve conflicts
+RUN pip3 install --no-cache-dir librosa==0.10.2
+
+# Install TTS models (production-ready) - librosa already installed
 RUN pip3 install --no-cache-dir \
     chatterbox-tts==0.1.0 \
     styletts2==0.1.6 \
@@ -96,8 +99,7 @@ RUN pip3 install --no-cache-dir \
     resemblyzer==0.1.1.dev0 \
     speechbrain==0.5.16
 
-# Install audio processing libraries (install librosa first to resolve conflicts)
-RUN pip3 install --no-cache-dir librosa==0.10.2
+# Install remaining audio processing libraries (librosa already installed above)
 RUN pip3 install --no-cache-dir \
     soundfile==0.12.1 \
     pydub==0.25.1 \
