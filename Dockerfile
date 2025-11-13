@@ -29,21 +29,11 @@ RUN mkdir -p /etc/apt/keyrings \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-
-# Install Node.js dependencies
-RUN npm install
-
-# Copy source code
+# Copy source code (needed for Python ML services and Gradio app)
 COPY . .
 
-# Build frontend and backend
-RUN npm run build
-
-# Copy Python ML services to dist (needed for Python bridge)
-RUN mkdir -p /app/dist/ml-services && \
-    cp -r /app/server/ml-services/* /app/dist/ml-services/
+# Note: Skipping npm build for now - Gradio UI doesn't need it
+# The Express API can be built at runtime if needed
 
 # ============================================================================
 # Python ML Environment Setup - PRODUCTION MODELS
