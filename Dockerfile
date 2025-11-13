@@ -76,11 +76,20 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
 # Install librosa FIRST (before TTS) to resolve conflicts
 RUN pip3 install --no-cache-dir librosa==0.10.2
 
-# Install TTS models (production-ready) - librosa already installed
+# Install TTS models separately to avoid dependency conflicts
+# (each wants different librosa version, but 0.10.2 works for both)
+RUN pip3 install --no-cache-dir chatterbox-tts==0.1.0 --no-deps
+RUN pip3 install --no-cache-dir styletts2==0.1.6 --no-deps
+RUN pip3 install --no-cache-dir TTS==0.22.0
+
+# Install missing dependencies for TTS packages
 RUN pip3 install --no-cache-dir \
-    chatterbox-tts==0.1.0 \
-    styletts2==0.1.6 \
-    TTS==0.22.0
+    gruut-ipa \
+    gruut-lang-en \
+    langchain \
+    phonemizer \
+    piper-phonemize \
+    pypinyin
 
 # Install STT (faster-whisper with CTranslate2)
 RUN pip3 install --no-cache-dir \
