@@ -1,0 +1,50 @@
+# Hugging Face Space Configuration for VoiceForge API
+# This file configures the Space deployment settings
+
+# Space metadata
+title: "VoiceForge API - Production Voice AI Platform"
+emoji: 🎙️
+colorFrom: purple
+colorTo: blue
+sdk: docker
+pinned: false
+license: mit
+
+# UI Mode: Gradio (for testing and API access)
+# Express API runs on port 7861 (internal)
+# Gradio UI runs on port 7860 (public)
+
+# GPU configuration - starts with CPU, upgrade to A100 after creation
+# Upgrade via Space Settings → Hardware → A100 - 80GB
+app_port: 7860
+
+# Hardware (optional - set via Space Settings)
+# hardware: cpu-basic  # Start with CPU, upgrade later
+
+# Suggested tags for discoverability
+tags:
+  - voice
+  - tts
+  - text-to-speech
+  - stt
+  - speech-to-text
+  - voice-cloning
+  - llm
+  - ai
+  - conversational-ai
+  - telephony
+  - api
+  - production
+
+# Python version (specified in Dockerfile)
+python_version: "3.11"
+
+# Sleep configuration (set via API or Space Settings after creation)
+# sleep_time: 3600  # 1 hour in seconds (recommended)
+
+# Startup timeout (in seconds) - allow time for model loading
+startup_duration_timeout: 600  # 10 minutes
+
+# Environment variables (sensitive values set via Space Settings → Repository secrets)
+# Do not put actual secrets here - this is for documentation only
+# Note: Environment variables are set in Dockerfile, not here

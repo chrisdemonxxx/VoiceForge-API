@@ -1,0 +1,19 @@
+# VoiceForge API - Build Prerequisites for vLLM CUDA Compilation
+# These must be installed BEFORE requirements-deployment.txt
+
+# Core build tools (needed for vLLM CUDA kernel compilation)
+pip>=23.0
+setuptools>=68.0
+setuptools-scm
+wheel
+packaging>=23.0
+
+# NumPy (required before vLLM - version constraint for numba compatibility)
+numpy>=1.22.0,<1.27.0
+
+# Build system
+ninja
+cmake
+
+# Numba (also needs to be pre-installed for librosa/vllm)
+numba==0.58.1
