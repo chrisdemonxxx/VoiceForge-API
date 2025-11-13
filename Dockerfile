@@ -66,7 +66,7 @@ RUN pip3 install --no-cache-dir vllm==0.6.0
 COPY requirements-deployment.txt ./
 RUN pip3 install --no-cache-dir --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir \
-    transformers==4.46.1 \
+    transformers==4.39.3 \
     accelerate==0.27.2 \
     optimum==1.18.0 \
     einops==0.7.0 \

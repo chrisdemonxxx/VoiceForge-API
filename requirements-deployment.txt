@@ -6,7 +6,7 @@
 # ============================================================================
 # NOTE: PyTorch with CUDA 12.1 is installed separately in Dockerfile
 # to ensure proper CUDA wheel installation. Do not add torch/torchaudio here.
-transformers==4.46.1
+transformers==4.39.3
 accelerate==0.27.2
 optimum==1.18.0
 einops==0.7.0
@@ -74,11 +74,10 @@ scipy==1.11.4
 # Model Management & Optimization
 # ============================================================================
 # NOTE: bitsandbytes version must match torch CUDA wheel (cu121)
-# NOTE: huggingface-hub >=0.23.2 required by transformers 4.46.1
+# NOTE: huggingface-hub >=0.23.2 required by transformers 4.39.3
 huggingface-hub==0.23.2
 safetensors==0.4.1
 bitsandbytes==0.42.0
-flashattention==2.5.0
 peft==0.12.0
 
 # ============================================================================
