@@ -96,9 +96,9 @@ RUN pip3 install --no-cache-dir \
     resemblyzer==0.1.1.dev0 \
     speechbrain==0.5.16
 
-# Install audio processing libraries
+# Install audio processing libraries (install librosa first to resolve conflicts)
+RUN pip3 install --no-cache-dir librosa==0.10.2
 RUN pip3 install --no-cache-dir \
-    librosa==0.10.1 \
     soundfile==0.12.1 \
     pydub==0.25.1 \
     audioread==3.0.1 \
