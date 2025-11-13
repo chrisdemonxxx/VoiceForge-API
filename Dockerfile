@@ -100,7 +100,7 @@ RUN pip3 install --no-cache-dir \
 # Install VAD (Silero VAD v5)
 RUN pip3 install --no-cache-dir \
     silero-vad==6.2.0 \
-    silero==0.4.2 \
+    silero==0.5.1 \
     webrtcvad==2.0.10
 
 # Install voice cloning dependencies
