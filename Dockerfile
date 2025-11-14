@@ -119,11 +119,11 @@ RUN pip3 install --no-cache-dir \
     loguru==0.7.2 \
     psutil==5.9.7
 
-# Pre-download small models only (Silero VAD ~20MB)
-RUN python3 -c "import torch; torch.hub.set_dir('/app/ml-cache'); torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False, trust_repo=True)" || true
-
 # Copy application code
 COPY . .
+
+# Note: All models (including Silero VAD) will be downloaded at runtime on first use
+# This avoids build timeouts and keeps the Docker image smaller
 
 # Create runtime directories with proper permissions
 RUN mkdir -p /app/uploads /app/ml-cache /app/logs /tmp/voiceforge && \
