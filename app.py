@@ -118,82 +118,13 @@ except Exception as e:
 
 print("✓ Runtime directories created")
 
-# Start Express API server in background
-print("\n🌐 Starting Express API server (background)...")
+# Note: Skipping Express API server (Node.js not installed in this deployment)
+# Gradio UI provides all functionality needed for testing AI models
+print("\n📝 Express API server: Skipped (Gradio-only deployment)")
 print("=" * 80)
 
-# Check if we need to build/install
-if not Path(f'{app_dir}/node_modules').exists():
-    print("📦 Installing Node.js dependencies...")
-    subprocess.run(['npm', 'install'], check=False, cwd=app_dir, timeout=300)
-    print("✓ Node.js dependencies installed")
-
-# Initialize database tables (only if DATABASE_URL is available)
-database_url = os.environ.get('DATABASE_URL')
-if database_url:
-    print("\n🗄️  Initializing database...")
-    try:
-        result = subprocess.run(
-            ['npm', 'run', 'db:push'],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            cwd=app_dir
-        )
-        if result.returncode == 0:
-            print("✓ Database tables created/updated successfully")
-        else:
-            print("⚠️  Database initialization warning (tables may already exist)")
-    except subprocess.TimeoutExpired:
-        print("⚠️  Database initialization timed out")
-else:
-    print("\n📝 DATABASE_URL not set - running without persistent database")
-
-# Start Express server in background
+# No Express server in this deployment
 server_process = None
-try:
-    if Path(f'{app_dir}/dist/index.js').exists():
-        server_process = subprocess.Popen(
-            ['node', 'dist/index.js'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            cwd=app_dir,
-            env={**os.environ, 'NODE_ENV': 'production', 'PORT': '7861'}
-        )
-    else:
-        server_process = subprocess.Popen(
-            ['npm', 'start'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            cwd=app_dir
-        )
-    print("✓ Express API server starting in background")
-except Exception as e:
-    print(f"⚠️  Failed to start Express server: {e}")
-    print("   Gradio UI will still work but API calls may fail")
-    server_process = None
-
-# Stream server output in background thread
-def stream_server_output():
-    if server_process and server_process.stdout:
-        try:
-            for line in server_process.stdout:
-                print(f"[API] {line}", end='')
-        except:
-            pass
-
-if server_process:
-    server_thread = threading.Thread(target=stream_server_output, daemon=True)
-    server_thread.start()
-    
-    # Wait a bit for server to start
-    print("⏳ Waiting for API server to initialize...")
-    time.sleep(5)
 
 # Start Gradio UI
 print("\n🎨 Starting Gradio UI...")
