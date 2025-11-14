@@ -154,13 +154,15 @@ except ImportError:
         sys.exit(1)
     sys.exit(0)
 
-# Try to import and launch Gradio
+# Try to import and launch Gradio STANDALONE (no Express dependency)
 try:
-    from gradio_app import create_gradio_interface
-    
-    print("✓ Gradio app imported successfully")
+    print("📦 Importing standalone Gradio interface (direct ML service calls)...")
+    from gradio_app_standalone import create_gradio_interface
+
+    print("✓ Gradio standalone app imported successfully")
     print("🚀 Launching Gradio interface...")
-    
+    print("   This interface calls Python ML services directly (no HTTP/Express layer)")
+
     demo = create_gradio_interface()
     # Launch Gradio in blocking mode (this keeps the process alive)
     demo.launch(
@@ -174,19 +176,42 @@ try:
     # This line should never be reached if launch() works correctly
     print("⚠️  Gradio launch returned unexpectedly")
 except ImportError as e:
-    print(f"❌ ERROR: Failed to import Gradio app: {e}")
+    print(f"❌ ERROR: Failed to import Gradio standalone app: {e}")
     print("   Error details:", str(e))
     import traceback
     traceback.print_exc()
-    print("⚠️  Falling back to Express-only mode")
-    if server_process:
-        print("✓ Express API server is running on port 7861")
-        try:
-            server_process.wait()
-        except KeyboardInterrupt:
-            signal_handler(None, None)
-    else:
-        sys.exit(1)
+
+    # Try fallback to old gradio_app (with Express dependency)
+    print("\n📝 Trying fallback to gradio_app (requires Express API)...")
+    try:
+        from gradio_app import create_gradio_interface
+        print("✓ Fallback Gradio app imported")
+        print("⚠️  WARNING: This requires Express API on port 7861 which may not be running")
+
+        demo = create_gradio_interface()
+        demo.launch(
+            server_name="0.0.0.0",
+            server_port=7860,
+            share=False,
+            show_error=True,
+            prevent_thread_lock=False,
+            inbrowser=False
+        )
+    except Exception as e2:
+        print(f"❌ ERROR: Fallback also failed: {e2}")
+        import traceback
+        traceback.print_exc()
+
+        if server_process:
+            print("⚠️  Express API server may be running on port 7861")
+            try:
+                server_process.wait()
+            except KeyboardInterrupt:
+                signal_handler(None, None)
+        else:
+            print("❌ No services available. Exiting.")
+            sys.exit(1)
+
 except Exception as e:
     print(f"❌ ERROR: Failed to launch Gradio: {e}")
     import traceback
