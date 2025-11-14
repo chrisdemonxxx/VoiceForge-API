@@ -99,7 +99,7 @@ RUN pip3 install --no-cache-dir \
 RUN pip3 install --no-cache-dir \
     fastapi==0.109.0 \
     uvicorn[standard]==0.27.0 \
-    python-multipart==0.0.6 \
+    python-multipart>=0.0.9 \
     aiofiles==23.2.1 \
     gradio==4.19.1
 
