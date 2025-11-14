@@ -68,9 +68,10 @@ except ImportError as e:
 try:
     import vllm  # type: ignore
     print(f"✓ vLLM {vllm.__version__} loaded successfully")
-except ImportError:
-    print("⚠️  WARNING: vLLM not installed")
-    print("   Some features may not be available")
+except (ImportError, RuntimeError) as e:
+    print("⚠️  WARNING: vLLM not available")
+    print(f"   Reason: {str(e)[:100]}")
+    print("   Using NVIDIA API fallback for Voice LLM features")
 
 print("=" * 80)
 

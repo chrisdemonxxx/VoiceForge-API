@@ -17,9 +17,9 @@ from collections import defaultdict
 try:
     from vllm import LLM, SamplingParams
     VLLM_AVAILABLE = True
-except ImportError:
+except (ImportError, RuntimeError) as e:
     VLLM_AVAILABLE = False
-    print("[VLLM] WARNING: vllm not installed, using NVIDIA API fallback", file=sys.stderr, flush=True)
+    print(f"[VLLM] WARNING: vLLM not available ({type(e).__name__}), using NVIDIA API fallback", file=sys.stderr, flush=True)
 
 @dataclass
 class Message:
