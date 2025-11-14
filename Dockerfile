@@ -126,8 +126,8 @@ COPY . .
 # This avoids build timeouts and keeps the Docker image smaller
 
 # Create runtime directories with proper permissions
-RUN mkdir -p /app/uploads /app/ml-cache /app/logs /tmp/voiceforge && \
-    chmod -R 777 /app/uploads /app/ml-cache /app/logs /tmp/voiceforge
+RUN mkdir -p /app/uploads /app/ml-cache /app/logs /tmp/voiceforge
+RUN chmod -R 777 /app/uploads /app/ml-cache /app/logs /tmp/voiceforge
 
 # Set environment variables
 ENV NODE_ENV=production
