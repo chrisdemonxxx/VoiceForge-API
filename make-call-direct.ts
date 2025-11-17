@@ -10,7 +10,7 @@ import twilio from "twilio";
 const PHONE_NUMBER = process.argv[2] || "+19517458409";
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
-const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER || "+18776118846";
 const BASE_URL = process.env.BASE_URL || "http://localhost:5000";
 
 if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
@@ -24,11 +24,7 @@ if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN) {
   process.exit(1);
 }
 
-if (!TWILIO_PHONE_NUMBER) {
-  console.error("❌ Error: TWILIO_PHONE_NUMBER must be set");
-  console.error("This should be your Twilio phone number (e.g., +1234567890)");
-  process.exit(1);
-}
+// TWILIO_PHONE_NUMBER now defaults to +18776118846 if not set
 
 console.log("==========================================");
 console.log("Making Direct Test Call");
