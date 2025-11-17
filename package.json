@@ -8,6 +8,11 @@
     "start": "bash start.sh",
     "postinstall": "rm -f server/vite.ts vite.config.ts || true"
   },
+  "overrides": {
+    "drizzle-orm": {
+      "expo-sqlite": "$expo-sqlite"
+    }
+  },
   "dependencies": {
     "cors": "^2.8.5",
     "drizzle-orm": "^0.29.0",
