@@ -929,14 +929,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate WebSocket stream URL for real-time audio
       // CRITICAL: Must use wss:// for HTTPS tunnels (Twilio requires secure WebSocket)
       let baseUrl: string;
+      
+      // Try to determine base URL from request headers (for Render/production)
+      const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      
       if (process.env.BASE_URL) {
         const url = new URL(process.env.BASE_URL);
         // Always use wss:// for HTTPS, ws:// for HTTP
         baseUrl = url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`;
         // Ensure no trailing slash
         baseUrl = baseUrl.replace(/\/$/, '');
+      } else if (host && (host.includes('render.com') || host.includes('onrender.com'))) {
+        // Render deployment - use request host
+        baseUrl = protocol === 'https' ? `wss://${host}` : `ws://${host}`;
       } else if (process.env.REPLIT_DOMAINS) {
         baseUrl = `wss://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+      } else if (host) {
+        // Use request host as fallback
+        baseUrl = protocol === 'https' ? `wss://${host}` : `ws://${host}`;
       } else {
         baseUrl = 'ws://localhost:5000';
       }
@@ -1094,14 +1105,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate WebSocket stream URL for real-time audio with auth token
       // CRITICAL: Must use wss:// for HTTPS tunnels (Twilio requires secure WebSocket)
       let baseUrl: string;
+      
+      // Try to determine base URL from request headers (for Render/production)
+      const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+      const host = req.headers['x-forwarded-host'] || req.headers.host;
+      
       if (process.env.BASE_URL) {
         // Convert HTTP/HTTPS URL to WebSocket URL
         const url = new URL(process.env.BASE_URL);
         baseUrl = url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`;
         // Ensure no trailing slash
         baseUrl = baseUrl.replace(/\/$/, '');
+      } else if (host && (host.includes('render.com') || host.includes('onrender.com'))) {
+        // Render deployment - use request host
+        baseUrl = protocol === 'https' ? `wss://${host}` : `ws://${host}`;
       } else if (process.env.REPLIT_DOMAINS) {
         baseUrl = `wss://${process.env.REPLIT_DOMAINS.split(',')[0]}`;
+      } else if (host) {
+        // Use request host as fallback
+        baseUrl = protocol === 'https' ? `wss://${host}` : `ws://${host}`;
       } else {
         baseUrl = 'ws://localhost:5000';
       }
