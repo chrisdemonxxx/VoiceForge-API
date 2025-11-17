@@ -41,6 +41,13 @@ export class TrueVoiceClient extends EventEmitter {
   private isConnected = false;
   private connectionId: string | null = null;
 
+  /**
+   * Get connection status
+   */
+  get connecting(): boolean {
+    return this.isConnecting;
+  }
+
   constructor(config: TrueVoiceConfig) {
     super();
     this.config = {

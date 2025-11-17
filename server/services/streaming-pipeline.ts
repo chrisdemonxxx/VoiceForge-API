@@ -112,7 +112,14 @@ export class StreamingPipeline extends EventEmitter {
     this.trueVoiceClient.on('disconnected', (info: { code: number; reason: string }) => {
       console.log(`[StreamingPipeline] TrueVoiceStreaming disconnected: ${info.code} - ${info.reason}`);
       this.emit('disconnected', info);
-      this.stop();
+      // Don't stop pipeline on disconnect - allow reconnection attempts
+      // Only stop if it's an intentional close (code 1000)
+      if (info.code === 1000) {
+        this.stop();
+      } else {
+        // Keep pipeline active for reconnection attempts
+        console.log(`[StreamingPipeline] Keeping pipeline active for reconnection`);
+      }
     });
 
     this.trueVoiceClient.on('error', (error: Error) => {
@@ -150,13 +157,19 @@ export class StreamingPipeline extends EventEmitter {
       return;
     }
 
-    // Connect to TrueVoiceStreaming
-    await this.trueVoiceClient.connect();
-
-    // Start playback loop
+    // Start playback loop first (even if connection fails, we can retry)
     this.isActive = true;
     this.playbackController.start();
     this.startPlaybackLoop();
+
+    // Connect to TrueVoiceStreaming (non-blocking - allow pipeline to continue if connection fails)
+    try {
+      await this.trueVoiceClient.connect();
+    } catch (error: any) {
+      console.error('[StreamingPipeline] Failed to connect to TrueVoiceStreaming:', error.message);
+      console.log('[StreamingPipeline] Pipeline will continue and retry connection');
+      // Don't throw - allow pipeline to stay active for reconnection attempts
+    }
 
     console.log('[StreamingPipeline] Pipeline started');
     this.emit('started');
@@ -193,7 +206,18 @@ export class StreamingPipeline extends EventEmitter {
    * Process incoming audio from telephony (μ-law 8kHz)
    */
   async processIncomingAudio(ulawAudio: Buffer): Promise<void> {
-    if (!this.isActive || !this.trueVoiceClient.connected) {
+    if (!this.isActive) {
+      return;
+    }
+
+    // Only send if connected, otherwise silently drop (will retry connection)
+    if (!this.trueVoiceClient.connected) {
+      // Try to reconnect if not already connecting
+      if (!this.trueVoiceClient.isConnecting) {
+        this.trueVoiceClient.connect().catch((error) => {
+          // Silently handle reconnection failures - will retry on next chunk
+        });
+      }
       return;
     }
 
@@ -205,7 +229,10 @@ export class StreamingPipeline extends EventEmitter {
       this.trueVoiceClient.sendAudio(pcm16Audio);
       this.statistics.audioChunksReceived++;
     } catch (error: any) {
-      console.error('[StreamingPipeline] Error processing incoming audio:', error);
+      // Don't log every error - only log if it's not a connection issue
+      if (!error.message?.includes('not connected')) {
+        console.error('[StreamingPipeline] Error processing incoming audio:', error);
+      }
       this.emit('error', error);
     }
   }

@@ -357,7 +357,9 @@ export class TelephonyService {
       });
 
       pipeline.on('error', (error: Error) => {
-        console.error(`[TelephonyService] Pipeline error [${session.id}]:`, error);
+        // Log error but don't disconnect call - pipeline will attempt to reconnect
+        console.error(`[TelephonyService] Pipeline error [${session.id}]:`, error.message);
+        // Don't emit error to avoid call disconnection
       });
 
       // Start pipeline
