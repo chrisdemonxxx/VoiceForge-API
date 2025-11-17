@@ -1269,6 +1269,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Set up audio output callback to send audio back to Twilio
     const authenticatedSession = telephonyService.getSession(sessionId);
     if (authenticatedSession) {
+      let lastAudioTime = Date.now();
+      let keepAliveInterval: NodeJS.Timeout | null = null;
+      
       telephonyService.setAudioOutputCallback(sessionId, async (ulawAudio: Buffer) => {
         // Send audio back to Twilio in Media Streams format
         if (ws.readyState === WebSocket.OPEN && streamSid) {
@@ -1281,9 +1284,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
               },
             };
             ws.send(JSON.stringify(mediaMessage));
+            lastAudioTime = Date.now();
+            
+            // Clear any existing keepalive since we're sending real audio
+            if (keepAliveInterval) {
+              clearInterval(keepAliveInterval);
+              keepAliveInterval = null;
+            }
           } catch (error: any) {
             console.error(`[TwilioMedia] Failed to send audio:`, error.message);
           }
+        }
+      });
+      
+      // Set up keepalive to send silence if no audio is received for 2 seconds
+      // This prevents Twilio from disconnecting due to lack of audio
+      keepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN && streamSid) {
+          const timeSinceLastAudio = Date.now() - lastAudioTime;
+          
+          // If no audio sent in last 2 seconds, send silence to keep connection alive
+          if (timeSinceLastAudio > 2000) {
+            const silencePacket = Buffer.alloc(160); // 20ms of silence
+            silencePacket.fill(0xFF); // μ-law silence value
+            
+            const keepAliveMessage = {
+              event: 'media',
+              streamSid: streamSid,
+              media: {
+                payload: silencePacket.toString('base64'),
+              },
+            };
+            
+            try {
+              ws.send(JSON.stringify(keepAliveMessage));
+            } catch (error: any) {
+              // Connection might be closed, clear interval
+              if (keepAliveInterval) {
+                clearInterval(keepAliveInterval);
+                keepAliveInterval = null;
+              }
+            }
+          }
+        } else {
+          // Connection closed, clear interval
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
+        }
+      }, 1000); // Check every second
+      
+      // Clean up keepalive on stream stop
+      ws.on('close', () => {
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+          keepAliveInterval = null;
         }
       });
     }
