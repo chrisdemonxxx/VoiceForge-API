@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts",
-    "start": "npx tsx server/index.ts"
+    "start": "npx tsx server/index.ts",
+    "postinstall": "rm -f server/vite.ts vite.config.ts || true"
   },
   "dependencies": {
     "cors": "^2.8.5",
