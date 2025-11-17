@@ -1274,12 +1274,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Function to start keepalive mechanism (will be called after streamSid is available)
     const startKeepAlive = () => {
       if (keepAliveInterval) return; // Already started
-      if (!streamSid) return; // streamSid not available yet
+      // Allow starting even without streamSid (will use temp value until 'start' event)
+      // This prevents disconnection before the 'start' event arrives
       
       // Set up keepalive to send silence if no audio is received for 2 seconds
       // This prevents Twilio from disconnecting due to lack of audio
       keepAliveInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN && streamSid) {
+        if (ws.readyState === WebSocket.OPEN) {
+          // Use streamSid if available, otherwise skip (will be set when 'start' event arrives)
+          const currentStreamSid = streamSid;
+          if (!currentStreamSid) {
+            return; // Wait for streamSid from 'start' event
+          }
+          
           const timeSinceLastAudio = Date.now() - lastAudioTime;
           
           // If no audio sent in last 2 seconds, send silence to keep connection alive
@@ -1289,7 +1296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             const keepAliveMessage = {
               event: 'media',
-              streamSid: streamSid,
+              streamSid: currentStreamSid,
               media: {
                 payload: silencePacket.toString('base64'),
               },
@@ -1363,6 +1370,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         switch (message.event) {
           case 'connected':
             console.log(`[TwilioMedia] Connected: protocol=${message.protocol}`);
+            // Note: Keepalive will start when 'start' event arrives with streamSid
+            // Starting too early won't work because we need streamSid to send media
             break;
             
           case 'start':
