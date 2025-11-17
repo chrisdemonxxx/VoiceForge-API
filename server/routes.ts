@@ -1334,29 +1334,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     (ws as any).__startKeepAlive = startKeepAlive;
     (ws as any).__stopKeepAlive = stopKeepAlive;
     
-    // CRITICAL: Send initial keepalive immediately upon WebSocket connection
-    // This prevents Twilio from disconnecting before the 'start' event arrives
-    // We'll use a temporary streamSid placeholder that Twilio will ignore, but it keeps the connection alive
-    const sendInitialKeepAlive = () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        try {
-          // Send a minimal keepalive message to prevent disconnection
-          // Twilio may accept this or ignore it, but it keeps the WebSocket active
-          const initialKeepAlive = {
-            event: 'connected',
-            protocol: 'WSS',
-          };
-          ws.send(JSON.stringify(initialKeepAlive));
-          console.log(`[TwilioMedia] Sent initial keepalive upon connection`);
-        } catch (error: any) {
-          console.warn(`[TwilioMedia] Could not send initial keepalive:`, error.message);
-        }
-      }
-    };
-    
-    // Send initial keepalive immediately
-    sendInitialKeepAlive();
-    
     if (authenticatedSession) {
       telephonyService.setAudioOutputCallback(sessionId, async (ulawAudio: Buffer) => {
         // Send audio back to Twilio in Media Streams format
@@ -1421,19 +1398,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Update call status to in-progress when stream starts
               await telephonyService.updateCallStatus(sessionId, 'in-progress');
               
-              // Start keepalive mechanism now that streamSid is available
-              // This prevents Twilio from disconnecting due to lack of audio
-              const startKeepAliveFunc = (ws as any).__startKeepAlive;
-              if (startKeepAliveFunc && typeof startKeepAliveFunc === 'function') {
-                startKeepAliveFunc();
-                console.log(`[TwilioMedia] Started keepalive mechanism`);
-              }
+              // Keepalive is already started from 'connected' event
+              // Now that we have streamSid, it will actually send silence packets
+              console.log(`[TwilioMedia] streamSid available - keepalive will now send silence packets`);
               
-              // Send initial silence/keepalive to prevent Twilio from hanging up
-              // Twilio may disconnect if no audio is received within a few seconds
+              // Send immediate silence packet now that streamSid is available
+              // This prevents Twilio from hanging up while TrueVoiceStreaming connects
               if (ws.readyState === WebSocket.OPEN && streamSid) {
-                // Send a small silence packet to keep the connection alive
-                // This gives TrueVoiceStreaming time to connect and start sending audio
                 const silencePacket = Buffer.alloc(160); // 20ms of silence at 8kHz μ-law
                 silencePacket.fill(0xFF); // μ-law silence value
                 
@@ -1447,9 +1418,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 try {
                   ws.send(JSON.stringify(keepAliveMessage));
-                  console.log(`[TwilioMedia] Sent initial keepalive silence packet`);
+                  console.log(`[TwilioMedia] Sent immediate silence packet with streamSid`);
+                  lastAudioTime = Date.now(); // Reset timer
                 } catch (error: any) {
-                  console.warn(`[TwilioMedia] Could not send keepalive:`, error.message);
+                  console.warn(`[TwilioMedia] Could not send immediate silence:`, error.message);
                 }
               }
             }
