@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server/index.ts",
+    "prestart": "rm -f server/vite.ts vite.config.ts || true",
     "start": "npx tsx server/index.ts",
     "postinstall": "rm -f server/vite.ts vite.config.ts || true"
   },
