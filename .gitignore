@@ -15,3 +15,7 @@ ml-cache/
 # Deployment artifacts (not needed in production)
 voiceforge-deploy.tar.gz
 attached_assets/
+
+# Vite (removed - frontend deleted)
+vite.config.ts
+server/vite.ts
