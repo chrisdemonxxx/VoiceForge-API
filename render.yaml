@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: voiceforge-api
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm install && npm run build || echo "No build script"
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: TRUEVOICE_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: BASE_URL
+        fromService:
+          type: web
+          name: voiceforge-api
+          property: host
+
