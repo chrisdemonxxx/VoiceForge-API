@@ -318,6 +318,7 @@ export class StreamingPipeline extends EventEmitter {
       // Emit audio for telephony
       this.emit('audio', ulawAudio);
       this.statistics.audioChunksSent++;
+      
 
       // Update statistics
       this.statistics.playbackState = this.playbackController.getState();

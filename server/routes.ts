@@ -1305,15 +1305,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Update call record with stream info
             const startSession = telephonyService.getSession(sessionId);
             if (startSession) {
-              await storage.updateCall(startSession.callId, {
-                metadata: {
-                  streamSid,
-                  callSid,
-                },
-              });
+              try {
+                await storage.updateCall(startSession.callId, {
+                  metadata: {
+                    streamSid,
+                    callSid,
+                  },
+                });
+              } catch (error: any) {
+                // Database might not be available, continue anyway
+                console.warn(`[TwilioMedia] Could not update call record:`, error.message);
+              }
               
               // Update call status to in-progress when stream starts
               await telephonyService.updateCallStatus(sessionId, 'in-progress');
+              
+              // Send initial silence/keepalive to prevent Twilio from hanging up
+              // Twilio may disconnect if no audio is received within a few seconds
+              if (ws.readyState === WebSocket.OPEN && streamSid) {
+                // Send a small silence packet to keep the connection alive
+                // This gives TrueVoiceStreaming time to connect and start sending audio
+                const silencePacket = Buffer.alloc(160); // 20ms of silence at 8kHz μ-law
+                silencePacket.fill(0xFF); // μ-law silence value
+                
+                const keepAliveMessage = {
+                  event: 'media',
+                  streamSid: streamSid,
+                  media: {
+                    payload: silencePacket.toString('base64'),
+                  },
+                };
+                
+                try {
+                  ws.send(JSON.stringify(keepAliveMessage));
+                  console.log(`[TwilioMedia] Sent keepalive silence packet`);
+                } catch (error: any) {
+                  console.warn(`[TwilioMedia] Could not send keepalive:`, error.message);
+                }
+              }
             }
             break;
             
