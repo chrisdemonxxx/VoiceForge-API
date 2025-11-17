@@ -1216,11 +1216,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TwilioMedia] WebSocket upgrade request: ${pathname}`);
       
       // Handle the upgrade to WebSocket
-      twilioMediaWss.handleUpgrade(request, socket, head, (ws) => {
-        twilioMediaWss.emit('connection', ws, request);
-      });
+      try {
+        twilioMediaWss.handleUpgrade(request, socket, head, (ws) => {
+          console.log(`[TwilioMedia] WebSocket upgrade successful, emitting connection event`);
+          twilioMediaWss.emit('connection', ws, request);
+        });
+      } catch (error: any) {
+        console.error(`[TwilioMedia] WebSocket upgrade error:`, error.message);
+        socket.destroy();
+      }
     } else {
       // Not a media stream request, close the connection
+      console.log(`[TwilioMedia] Rejecting non-media stream upgrade: ${pathname}`);
       socket.destroy();
     }
   });
