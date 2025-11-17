@@ -5,7 +5,20 @@
  * https://zadarma.com/en/support/instructions/
  */
 
-import sip from 'sip';
+// Lazy import sip to avoid loading it unless actually used
+let sip: any = null;
+async function getSip() {
+  if (!sip) {
+    try {
+      sip = await import('sip');
+      return sip.default || sip;
+    } catch (error: any) {
+      throw new Error(`Failed to load sip package: ${error.message}. Install with: npm install sip`);
+    }
+  }
+  return sip.default || sip;
+}
+
 import crypto from 'crypto';
 import os from 'os';
 import type { TelephonyProvider as TelephonyProviderType } from '@shared/schema';
@@ -47,6 +60,7 @@ export class ZadarmaSIPProvider {
   private localPort: number;
   private activeDialogs: Map<string, SIPDialog>;
   private sipStack: any;
+  private sipModule: any = null; // Lazy-loaded sip module
   private isRegistered: boolean = false;
   private registrationExpires: number = 3600; // Default 1 hour
   private registrationTimer: NodeJS.Timeout | null = null;
@@ -66,7 +80,10 @@ export class ZadarmaSIPProvider {
     this.localPort = 5060;
     this.activeDialogs = new Map();
 
-    this.initializeSIPStack();
+    // Initialize SIP stack asynchronously (lazy load sip package)
+    this.initializeSIPStack().catch((error) => {
+      console.error(`[ZadarmaSIP] Failed to initialize SIP stack:`, error.message);
+    });
     
     // Automatically register with SIP server on initialization
     this.register().catch((error) => {
@@ -97,13 +114,14 @@ export class ZadarmaSIPProvider {
   /**
    * Initialize SIP stack with message handlers
    */
-  private initializeSIPStack(): void {
+  private async initializeSIPStack(): Promise<void> {
     const self = this;
+    this.sipModule = await getSip();
 
     // Start SIP stack on random port to avoid conflicts
     this.localPort = 5060 + Math.floor(Math.random() * 1000);
 
-    sip.start({
+    this.sipModule.start({
       port: this.localPort,
       address: this.localIp,
       publicAddress: this.localIp,
@@ -119,9 +137,9 @@ export class ZadarmaSIPProvider {
           console.error(`[ZadarmaSIP] ERROR:`, e);
         }
       }
-    }, (request: any) => {
+    }, async (request: any) => {
       // Handle incoming SIP requests
-      this.handleIncomingRequest(request);
+      await this.handleIncomingRequest(request);
     });
 
     console.log(`[ZadarmaSIP] Stack initialized on ${this.localIp}:${this.localPort}`);
@@ -196,7 +214,11 @@ export class ZadarmaSIPProvider {
       };
 
       // Send REGISTER with authentication
-      this.sendAuthenticatedRequest(registerMessage, responseHandler);
+      this.sendAuthenticatedRequest(registerMessage, responseHandler).catch((error) => {
+        if (!responseReceived) {
+          reject(error);
+        }
+      });
 
       // Timeout after 10 seconds
       setTimeout(() => {
@@ -278,7 +300,7 @@ export class ZadarmaSIPProvider {
   /**
    * Handle incoming SIP requests (responses to our INVITE, etc.)
    */
-  private handleIncomingRequest(request: any): void {
+  private async handleIncomingRequest(request: any): Promise<void> {
     const method = request.method;
     const callId = request.headers['call-id'];
 
@@ -288,17 +310,17 @@ export class ZadarmaSIPProvider {
     switch (method) {
       case 'INVITE':
         // Incoming call (not implemented yet - requires webhook setup)
-        this.handleIncomingInvite(request);
+        await this.handleIncomingInvite(request);
         break;
 
       case 'BYE':
         // Call termination request
-        this.handleBye(request);
+        await this.handleBye(request);
         break;
 
       case 'CANCEL':
         // Call cancellation
-        this.handleCancel(request);
+        await this.handleCancel(request);
         break;
 
       default:
@@ -309,11 +331,14 @@ export class ZadarmaSIPProvider {
   /**
    * Handle incoming INVITE (inbound call)
    */
-  private handleIncomingInvite(request: any): void {
+  private async handleIncomingInvite(request: any): Promise<void> {
     console.log(`[ZadarmaSIP] Incoming call from ${request.headers.from.uri}`);
     
     // Send 180 Ringing response (not a request!)
-    sip.send({
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+    this.sipModule.send({
       status: 180,
       reason: 'Ringing',
       headers: {
@@ -332,11 +357,15 @@ export class ZadarmaSIPProvider {
   /**
    * Handle BYE request (call termination)
    */
-  private handleBye(request: any): void {
+  private async handleBye(request: any): Promise<void> {
     const callId = request.headers['call-id'];
     
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+    
     // Send 200 OK response (not a request!)
-    sip.send({
+    this.sipModule.send({
       status: 200,
       reason: 'OK',
       headers: {
@@ -357,11 +386,15 @@ export class ZadarmaSIPProvider {
   /**
    * Handle CANCEL request
    */
-  private handleCancel(request: any): void {
+  private async handleCancel(request: any): Promise<void> {
     const callId = request.headers['call-id'];
     
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+    
     // Send 200 OK response (not a request!)
-    sip.send({
+    this.sipModule.send({
       status: 200,
       reason: 'OK',
       headers: {
@@ -474,7 +507,9 @@ export class ZadarmaSIPProvider {
           });
 
           // Send ACK
-          this.sendAck(callId, fromTag, toTag, contact);
+          this.sendAck(callId, fromTag, toTag, contact).catch((error) => {
+            console.error(`[ZadarmaSIP] Failed to send ACK:`, error);
+          });
 
           resolve({
             providerCallId: callId,
@@ -492,7 +527,11 @@ export class ZadarmaSIPProvider {
       };
 
       // Send INVITE with authentication
-      this.sendAuthenticatedRequest(inviteMessage, responseHandler);
+      this.sendAuthenticatedRequest(inviteMessage, responseHandler).catch((error) => {
+        if (!responseReceived) {
+          reject(error);
+        }
+      });
 
       // Timeout after 30 seconds
       setTimeout(() => {
@@ -507,11 +546,15 @@ export class ZadarmaSIPProvider {
   /**
    * Send authenticated SIP request with digest authentication
    */
-  private sendAuthenticatedRequest(request: any, callback: (response: any) => void): void {
+  private async sendAuthenticatedRequest(request: any, callback: (response: any) => void): Promise<void> {
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+    
     console.log(`[ZadarmaSIP-AUTH] Sending initial request (no auth)`);
     
     // First attempt without auth
-    sip.send(request, (response: any) => {
+    this.sipModule.send(request, (response: any) => {
       console.log(`[ZadarmaSIP-AUTH] Received response: ${response.status} ${response.reason || ''}`);
       
       if (response.status === 401 || response.status === 407) {
@@ -529,7 +572,7 @@ export class ZadarmaSIPProvider {
         request.headers.cseq.seq++;
         
         console.log(`[ZadarmaSIP-AUTH] Retrying with authentication (CSeq: ${request.headers.cseq.seq})`);
-        sip.send(request, callback);
+        this.sipModule.send(request, callback);
       } else {
         console.log(`[ZadarmaSIP-AUTH] No auth required, forwarding response`);
         callback(response);
@@ -587,8 +630,12 @@ export class ZadarmaSIPProvider {
   /**
    * Send ACK message to confirm call establishment
    */
-  private sendAck(callId: string, fromTag: string, toTag: string, contact: string): void {
-    sip.send({
+  private async sendAck(callId: string, fromTag: string, toTag: string, contact: string): Promise<void> {
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+    
+    this.sipModule.send({
       method: 'ACK',
       uri: contact,
       headers: {
@@ -633,7 +680,11 @@ export class ZadarmaSIPProvider {
 
     console.log(`[ZadarmaSIP] Sending BYE for call ${callSid}`);
 
-    sip.send({
+    if (!this.sipModule) {
+      this.sipModule = await getSip();
+    }
+
+    this.sipModule.send({
       method: 'BYE',
       uri: dialog.remoteTarget,
       headers: {

@@ -101,6 +101,10 @@ export class TwilioProvider {
 
   /**
    * Generate TwiML for handling inbound/outbound calls
+   * Following Twilio best practices for Media Streams with AI voice systems
+   * 
+   * IMPORTANT: Do NOT use <Say> before <Connect><Stream> as it blocks the stream
+   * The stream should be the primary action for real-time AI interactions
    */
   static generateTwiML(config: {
     message?: string;
@@ -110,17 +114,28 @@ export class TwilioProvider {
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const twiml = new VoiceResponse();
 
-    if (config.message) {
+    // For Media Streams with AI, stream should be the primary action
+    // If streamUrl is provided, connect to stream immediately (no Say before it)
+    if (config.streamUrl) {
+      // Use <Connect><Stream> for bidirectional audio streaming
+      // This allows both receiving and sending audio for real-time AI conversations
+      const connect = twiml.connect();
+      // Configure stream with URL - this is required for Media Streams
+      connect.stream({ 
+        url: config.streamUrl
+      });
+      
+      // CRITICAL: Do NOT add <Say> before or after <Connect><Stream>
+      // This will block the stream connection and cause "application error"
+      // The AI voice system will handle greetings through the stream
+    } else if (config.message) {
+      // Only use Say if no stream is configured
       twiml.say({ voice: "alice" }, config.message);
     }
 
-    if (config.streamUrl) {
-      // Stream audio to WebSocket for real-time processing
-      const connect = twiml.connect();
-      connect.stream({ url: config.streamUrl });
-    }
-
-    if (config.recordingEnabled) {
+    // Recording can be enabled but should not interfere with streaming
+    if (config.recordingEnabled && !config.streamUrl) {
+      // Only enable recording if not using streams (streams handle recording separately)
       twiml.record({
         maxLength: 3600, // 1 hour max
         transcribe: false,

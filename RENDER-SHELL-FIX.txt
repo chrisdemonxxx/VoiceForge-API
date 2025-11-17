@@ -1,0 +1,7 @@
+# Copy and paste this entire block into Render Shell
+
+cd /opt/render/project/src && \
+rm -f server/vite.ts vite.config.ts && \
+echo "✅ Deleted vite files" && \
+echo "✅ Now go to Events tab → Manual Deploy → Clear build cache & deploy"
+
