@@ -1268,34 +1268,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Set up audio output callback to send audio back to Twilio
     const authenticatedSession = telephonyService.getSession(sessionId);
-    if (authenticatedSession) {
-      let lastAudioTime = Date.now();
-      let keepAliveInterval: NodeJS.Timeout | null = null;
-      
-      telephonyService.setAudioOutputCallback(sessionId, async (ulawAudio: Buffer) => {
-        // Send audio back to Twilio in Media Streams format
-        if (ws.readyState === WebSocket.OPEN && streamSid) {
-          try {
-            const mediaMessage = {
-              event: 'media',
-              streamSid: streamSid,
-              media: {
-                payload: ulawAudio.toString('base64'),
-              },
-            };
-            ws.send(JSON.stringify(mediaMessage));
-            lastAudioTime = Date.now();
-            
-            // Clear any existing keepalive since we're sending real audio
-            if (keepAliveInterval) {
-              clearInterval(keepAliveInterval);
-              keepAliveInterval = null;
-            }
-          } catch (error: any) {
-            console.error(`[TwilioMedia] Failed to send audio:`, error.message);
-          }
-        }
-      });
+    let lastAudioTime = Date.now();
+    let keepAliveInterval: NodeJS.Timeout | null = null;
+    
+    // Function to start keepalive mechanism (will be called after streamSid is available)
+    const startKeepAlive = () => {
+      if (keepAliveInterval) return; // Already started
+      if (!streamSid) return; // streamSid not available yet
       
       // Set up keepalive to send silence if no audio is received for 2 seconds
       // This prevents Twilio from disconnecting due to lack of audio
@@ -1334,15 +1313,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }, 1000); // Check every second
-      
-      // Clean up keepalive on stream stop
-      ws.on('close', () => {
-        if (keepAliveInterval) {
-          clearInterval(keepAliveInterval);
-          keepAliveInterval = null;
+    };
+    
+    // Function to stop keepalive
+    const stopKeepAlive = () => {
+      if (keepAliveInterval) {
+        clearInterval(keepAliveInterval);
+        keepAliveInterval = null;
+      }
+    };
+    
+    // Store functions on WebSocket for access in 'start' event handler
+    (ws as any).__startKeepAlive = startKeepAlive;
+    (ws as any).__stopKeepAlive = stopKeepAlive;
+    
+    if (authenticatedSession) {
+      telephonyService.setAudioOutputCallback(sessionId, async (ulawAudio: Buffer) => {
+        // Send audio back to Twilio in Media Streams format
+        if (ws.readyState === WebSocket.OPEN && streamSid) {
+          try {
+            const mediaMessage = {
+              event: 'media',
+              streamSid: streamSid,
+              media: {
+                payload: ulawAudio.toString('base64'),
+              },
+            };
+            ws.send(JSON.stringify(mediaMessage));
+            lastAudioTime = Date.now();
+            
+            // Clear any existing keepalive since we're sending real audio
+            stopKeepAlive();
+          } catch (error: any) {
+            console.error(`[TwilioMedia] Failed to send audio:`, error.message);
+          }
         }
       });
     }
+    
+    // Clean up keepalive on stream stop or close
+    ws.on('close', () => {
+      stopKeepAlive();
+    });
     
     ws.on('message', async (data: Buffer) => {
       try {
@@ -1376,6 +1388,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // Update call status to in-progress when stream starts
               await telephonyService.updateCallStatus(sessionId, 'in-progress');
               
+              // Start keepalive mechanism now that streamSid is available
+              // This prevents Twilio from disconnecting due to lack of audio
+              const startKeepAliveFunc = (ws as any).__startKeepAlive;
+              if (startKeepAliveFunc && typeof startKeepAliveFunc === 'function') {
+                startKeepAliveFunc();
+                console.log(`[TwilioMedia] Started keepalive mechanism`);
+              }
+              
               // Send initial silence/keepalive to prevent Twilio from hanging up
               // Twilio may disconnect if no audio is received within a few seconds
               if (ws.readyState === WebSocket.OPEN && streamSid) {
@@ -1394,7 +1414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 try {
                   ws.send(JSON.stringify(keepAliveMessage));
-                  console.log(`[TwilioMedia] Sent keepalive silence packet`);
+                  console.log(`[TwilioMedia] Sent initial keepalive silence packet`);
                 } catch (error: any) {
                   console.warn(`[TwilioMedia] Could not send keepalive:`, error.message);
                 }
@@ -1424,6 +1444,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'stop':
             console.log(`[TwilioMedia] Stream stopped: ${streamSid}`);
             audioBuffer = [];
+            
+            // Stop keepalive mechanism
+            const stopKeepAliveFunc = (ws as any).__stopKeepAlive;
+            if (stopKeepAliveFunc && typeof stopKeepAliveFunc === 'function') {
+              stopKeepAliveFunc();
+            }
             
             // Clean up streaming pipeline
             const stopSession = telephonyService.getSession(sessionId);
